@@ -1,0 +1,20 @@
+version: '3'
+services:
+  service1:
+    build:
+      context: ./app1
+      dockerfile: Dockerfile
+    environment:
+      - PORT=8080
+      - SERVICE2_ADDR=http://18.61.87.53:8081
+    ports:
+      - "8080:8080"
+  
+  service2:
+    build:
+      context: ./app2
+      dockerfile: Dockerfile
+    environment:
+      - PORT=8080
+    ports:
+      - "8080:8080"

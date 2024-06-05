@@ -1,0 +1,39 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: service1
+  namespace: production
+  labels:
+    app: service1
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: service1
+  template:
+    metadata:
+      labels:
+        app: service1
+    spec:
+      containers:
+      - name: service1
+        image: public.ecr.aws/t1x4x6v9/apisix:v10.0
+        ports:
+        - containerPort: 8080
+        env:
+        - name: SERVICE2_ADDR
+          value: "http://service2.production.svc.cluster.local:8080"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: service1
+  namespace: production
+  labels:
+    app: service1
+spec:
+  ports:
+  - port: 8080
+    targetPort: 8080
+  selector:
+    app: service1

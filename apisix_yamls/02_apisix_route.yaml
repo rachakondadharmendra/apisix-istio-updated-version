@@ -1,0 +1,16 @@
+apiVersion: apisix.apache.org/v2
+kind: ApisixRoute
+metadata:
+  name: srv1
+  namespace: production
+spec:
+  http:
+  - name: rule1
+    match:
+      hosts:
+      - apisix.rachakondadharmendra.info
+      paths:
+      - "/*"
+    backends:
+    - serviceName: service2
+      servicePort: 8080
