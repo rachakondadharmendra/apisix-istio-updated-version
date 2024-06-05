@@ -1,7 +1,10 @@
 
-```markdown
+
 
 ![Arch_Diagram](https://github.com/rachakondadharmendra/Ops-Knowledge-Base/blob/main/Arch-Daigrams/apisix-istio-arch.gif)
+```markdown
+
+
 
 
 # Minikube Setup
