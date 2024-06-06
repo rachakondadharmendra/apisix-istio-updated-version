@@ -14,3 +14,18 @@ docker run -d --name service1 -p 8080:8080 service1
 |        |        |  (service1) |       +--------------------+      +--------------------+
 +--------+        +-------------+        
                   
+
+
+Issues :
+
+ubuntu@ip-172-31-0-153:~/Staging$ curl http://192.168.49.2:30825/  -H 'HOST: local.rachakonda.me' 
+<a href="/hey">Temporary Redirect</a>.
+
+ubuntu@ip-172-31-0-153:~/Staging$ curl http://192.168.49.2:30825/  -H 'HOST: local.rachakonda.me' 
+<a href="http://my-service.my-app.svc.cluster.local/hey">Temporary Redirect</a>.
+
+ubuntu@ip-172-31-0-153:~/Staging$ curl http://192.168.49.2:30825/  -H 'HOST: local.rachakonda.me' 
+<a href="/hey">Temporary Redirect</a>.
+
+ubuntu@ip-172-31-0-153:~/Staging$ curl http://192.168.49.2:30825/  -H 'HOST: local.rachakonda.me' 
+<a href="/hey">Temporary Redirect</a>.

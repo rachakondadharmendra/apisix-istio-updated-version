@@ -8,7 +8,7 @@ spec:
   - name: rule1
     match:
       hosts:
-      - apisix.rachakondadharmendra.info
+      - local.rachakonda.me
       paths:
       - "/*"
     backends:

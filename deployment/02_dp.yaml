@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
       - name: service2
-        image: public.ecr.aws/t1x4x6v9/apisix:v5.0
+        image: public.ecr.aws/t1x4x6v9/apisix:v12.0
         ports:
         - containerPort: 8080
 ---

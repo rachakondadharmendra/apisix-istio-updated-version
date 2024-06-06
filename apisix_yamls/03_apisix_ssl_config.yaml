@@ -1,11 +1,11 @@
 apiVersion: apisix.apache.org/v2
 kind: ApisixTls
 metadata:
-  name: apisix.rachakondadharmendra.info
-  namespace: production  
+  name: tls-local-rachakonda-me
+  namespace: apisix
 spec:
   hosts:
-    - apisix.rachakondadharmendra.info
+    - local.rachakonda.me
   secret:
-    name: apisix-rachakondadharmendra-info-cert-new
-    namespace: production
+    name: apisix-cert
+    namespace: apisix

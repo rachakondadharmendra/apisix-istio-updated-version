@@ -1,28 +1,33 @@
 
+# Instance Creation with Configuration
 
+- **OS**: Ubuntu 22.04
+- **CPU**: 4
+- **RAM**: 16GB
+- **Storage**: 25GB
+- **Open Ports**: 80, 8080, 22 (default for SSH)
+- **IAM Instance Profile**: Admin_access_role (To access AWS resources securely)
 
+[Installation Configuration Details](Installation_Config.md)
 
-```markdown
+---
 
+# ISTIOCTL Setup
 
-
-
-# Minikube Setup
 ```bash
-minikube start --cpus=4 --memory=8192
-```
-
-# Istio Installation
-```bash
+cd ~/
 curl -sL https://istio.io/downloadIstioctl | sh -
 export PATH=$HOME/.istioctl/bin:$PATH 
 
+minikube start --cpus=4 --memory=8192
+
 istioctl x precheck
-istioctl install --set profile=minimal  -y
+istioctl install --set profile=minimal -y
 kubectl -n istio-system get pods
 ```
 
-# Apisix Setup
+## APIsix Installation
+
 ```bash
 kubectl apply -f apisix_yamls/01_ns.yaml
 
@@ -47,77 +52,150 @@ echo http://$NODE_IP:$NODE_PORT
 kubectl get po -n apisix
 ```
 
-# Metallb Setup (commented out)
+## Applying ISTIO and APIsix Configuration
+
 ```bash
-# helm repo add metallb https://metallb.github.io/metallb
-# helm uninstall metallb metallb/metallb \
-#    --namespace metallb-system
+cd ~/apisix-istio-updated-version/
+kubectl apply -f 01_strict_mtls.yaml
+kubectl apply -f 02_client.yaml
 ```
 
-# SSL Certificates
+## Verification of Pods and Services
+
 ```bash
-export DOMAIN_NAME=rachakondadharmendra.info
-export SUBDOMAIN_NAME=apisix
-
-openssl req -x509 -sha256 -nodes -days 365 -newkey rsa:2048 -subj '/O=$DOMAIN_NAME Inc./CN=$DOMAIN_NAME' -keyout $DOMAIN_NAME.key -out $DOMAIN_NAME.crt
-
-openssl req -out $SUBDOMAIN_NAME.$DOMAIN_NAME.csr -newkey rsa:2048 -nodes -keyout $SUBDOMAIN_NAME.$DOMAIN_NAME.key -subj "/CN=$SUBDOMAIN_NAME.$DOMAIN_NAME/O=$SUBDOMAIN_NAME is subdomain of $DOMAIN_NAME"
-
-openssl x509 -req -days 365 -CA $DOMAIN_NAME.crt -CAkey $DOMAIN_NAME.key -set_serial 0 -in $SUBDOMAIN_NAME.$DOMAIN_NAME.csr -out $SUBDOMAIN_NAME.$DOMAIN_NAME.crt
+kubectl get po,svc -n apisix
+kubectl get po,svc -n istio-system
+kubectl get ns
 ```
 
-# Base64 Conversion
-```bash
-base64 -w 0 $SUBDOMAIN_NAME.$DOMAIN_NAME.crt
-base64 -w 0 $SUBDOMAIN_NAME.$DOMAIN_NAME.key
+---
 
-base64 -w 0 $DOMAIN_NAME.crt >> test 
+# Application Deployment
+
+Now, let's deploy the applications. We have 2 services where service1, at path "/", redirects traffic to service2 at path "/srv2/".
+
+- Deploy the 2 services into the production namespace.
+- Ensure Istio envoy sidecar containers are added for mutual TLS.
+
+```bash
+kubectl apply -f deployment/
 ```
 
-# Kubernetes Secrets Creation
+## Setting Up APIsixRoute
+
+- Use APIsix gateway as the frontline for managing client-side requests.
+- Create an ApisixRoute to route traffic from the APIsix gateway to internal backends.
+
 ```bash
-kubectl create -n istio-system secret tls tetratelabs-credential --key=hello.tetratelabs.dev.key --cert=hello.tetratelabs.dev.crt
-export CERT_PATH=/home/ubuntu/production/rachakondadharmendra_certs
-export NODE_PORT=31234
+kubectl apply -f apisix_yamls/02_apisix_route.yaml
 ```
 
-# Testing
+---
+
+## Testing Configuration
+
 ```bash
-curl -H "Host:$SUBDOMAIN_NAME.$DOMAIN_NAME" --resolve "$SUBDOMAIN_NAME.$DOMAIN_NAME:$NODE_PORT:$NODE_IP" --cacert $CERT_PATH/$DOMAIN_NAME.crt "https://$SUBDOMAIN_NAME.$DOMAIN_NAME:$NODE_PORT"
-
-curl -H "Host:hello.tetratelabs.dev" --resolve "hello.tetratelabs.dev:443:$INGRESS_IP" --cacert tetratelabs.dev.crt "https://hello.tetratelabs.dev:443"
-
-curl -I -H "HOST: apisix.rachakondadharmendra.info" http://$NODE_IP:$NODE_PORT/
-curl -I -H "HOST: apisix.rachakondadharmendra.info" http://192.168.49.2:31962
-
-curl -H "Host: apisix.rachakondadharmendra.info" --resolve "apisix.rachakondadharmendra.info:8443:$NODE_IP" --cacert rachakondadharmendra.info.crt "https://apisix.rachakondadharmendra.info:8443/"
-
-curl https://apisix.rachakondadharmendra.info:8443/srv1 --resolve 'apisix.rachakondadharmendra.info:8443:192.168.49.2' -sk
-
-curl -v -H "Host: apisix.rachakondadharmendra.info" --resolve "apisix.rachakondadharmendra.info:8443:192.168.49.2" --cacert ~/production/rachakondadharmendra_certs/rachakondadharmendra.info.crt "https://apisix.rachakondadharmendra.info:8443/"
+minikube service apisix-gateway --url -n apisix
 ```
 
-# Miscellaneous
+You can access it now. Make sure to check the port and IP used as per the above command results.
+
 ```bash
-kubectl create -n production secret tls apisix-rachakondadharmendra-info-cert-new --key=apisix.rachakondadharmendra.info.key --cert=apisix.rachakondadharmendra.info.crt --dry-run=client 
+curl http://192.168.49.2:30825/ -H 'Host: local.rachakonda.me'
+```
 
-kubectl create -n production secret tls apisix-rachakondadharmendra-info-cert --key=apisix.rachakondadharmendra.info.key --cert=apisix.rachakondadharmendra.info.crt --cacert=rachakondadharmendra.info.crt
+You should now be able to make requests to the backend services via the APIsix gateway.
 
-kubectl port-forward --address 0.0.0.0 service/apisix-gateway -n apisix 8443:443 
+---
 
-curl -H "Host:hello.tetratelabs.dev" --resolve "hello.tetratelabs.dev:443:$NODE_IP" --cacert tetratelabs.dev.crt "https://hello.tetratelabs.dev:443"
+## Securing Connection
 
-openssl req -new -key apisix.rachakondadharmendra.info.key -out apisix.rachakondadharmendra.info.csr -subj "/C=Your Country/ST=Your State/L=Your City/O=Your Organization/CN=apisix.rachakondadharmendra.info/emailAddress=Your Email"
+To secure the connection between the APIsix gateway and the client side, we'll use OpenSSL.
 
-##############
-5U1wmJ5!cV\+
-##############
+```bash
+mkdir certs/ && cd certs/
+openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout tls.key -out tls.crt -subj "/CN=local.rachakonda.me/O=local.rachakonda.me"
 
-curl http://192.168.49.2:30789/ -H 
-kubectl logs apisix-ingress-controller-777cc48747-b9r8m -c istio-proxy -n apisix
-kubectl exec -it client -n client-nammespace -- sh
+kubectl create secret tls local-rachakonda-me-cert --cert=tls.crt --key=tls.key -n production
+```
 
-while true; do curl http://service1.production.svc.cluster.local:8080 && echo "" && sleep 1; done
+Create a new file with the name `tls-local-rachakonda-me.yaml` with the following content:
 
-curl http://192.168.49.2:32004  -H 'HOST: apisix.rachakondadharmendra.info' 
+```yaml
+apiVersion: apisix.apache.org/v2
+kind: ApisixTls
+metadata:
+  name: tls-local-rachakonda-me
+  namespace: production
+spec:
+  hosts:
+    - local.rachakonda.me
+  secret:
+    name: local-rachakonda-me-cert
+    namespace: production
+```
+
+Configuration of ApisixTLS YAML with the secret should be done by now.
+
+```bash
+minikube service apisix-gateway --url -n apisix
+```
+
+You can access it now. Make sure to check the port and IP used as per the above command results.
+
+```bash
+curl https://local.rachakonda.me:30336 --resolve 'local.rachakonda.me:30336:192.168.49.2' -k -v
+```
+
+# Troubleshooting and Log Checking
+
+## APIsix Troubleshooting
+
+- **Check APIsix Pods Status:**
+```bash
+kubectl get pods -n apisix
+```
+
+- **Check APIsix Services:**
+```bash
+kubectl get services -n apisix
+```
+
+- **Check APIsix Ingress Controller Logs:**
+```bash
+kubectl logs -n apisix <apisix-ingress-controller-pod-name>
+```
+
+## Istio Troubleshooting
+
+- **Check Istio Pods Status:**
+```bash
+kubectl get pods -n istio-system
+```
+
+- **Check Istio Services:**
+```bash
+kubectl get services -n istio-system
+```
+
+- **Check Istio Ingress Gateway Logs:**
+```bash
+kubectl logs -n istio-system <istio-ingress-gateway-pod-name>
+```
+
+## Istio Sidecar Troubleshooting
+
+- **Check Sidecar Injection Status:**
+```bash
+kubectl get pods -n <namespace> -o=jsonpath='{range .items[*]}{"\n"}{.metadata.name}{": "}{.spec.containers[*].name}{": "}{.status.phase}{": "}{.status.containerStatuses[*].restartCount}{end}'
+```
+
+- **Check Sidecar Logs:**
+```bash
+kubectl logs -n <namespace> <pod-name> -c istio-proxy
+```
+
+- **Check Sidecar Config:**
+```bash
+kubectl exec -it <pod-name> -n <namespace> -c istio-proxy -- pilot-agent request GET config_dump | grep listener
 ```

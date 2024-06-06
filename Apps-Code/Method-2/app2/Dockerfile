@@ -1,5 +1,5 @@
-# Dockerfile for service2
-FROM golang:latest
+
+FROM golang:1.22-alpine
 
 WORKDIR /app
 
@@ -9,8 +9,6 @@ RUN go mod download
 COPY . .
 
 RUN go build -o service2
-
-ENV SERVICE_TYPE=service2
 
 EXPOSE 8080
 

@@ -6,8 +6,6 @@ COPY . .
 RUN go mod download
 RUN go build -o service
 
-ENV SERVICE_TYPE=service2
-
 EXPOSE 8080
 
 CMD ["./service"]
